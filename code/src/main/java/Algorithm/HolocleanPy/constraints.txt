@@ -1,0 +1,2 @@
+t1&LT(t1.resid,t1.thr1)
+t1&GT(t1.resid,t1.thr2)
