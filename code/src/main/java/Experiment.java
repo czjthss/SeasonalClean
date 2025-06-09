@@ -7,8 +7,8 @@ import java.io.BufferedWriter;
 import java.util.Objects;
 
 public class Experiment {
-    private static final String INPUT_DIR = "/Users/chenzijie/Documents/GitHub/data/input/repair/synthetic/";
-    private static final String OUTPUT_DIR = "/Users/chenzijie/Documents/GitHub/data/output/repair/";
+    private static final String INPUT_DIR = "../../../../../data";
+    private static final String OUTPUT_DIR = "/";
     // dataset
     private static final String[] datasetFileList = {
             "power_5241600.csv",
@@ -261,8 +261,8 @@ public class Experiment {
         label_rate = 0.5;
 
         // reset
-        String INPUT_DIR_REAL = "/Users/chenzijie/Documents/GitHub/data/input/repair/";
-        String OUTPUT_DIR_REAL = "/Users/chenzijie/Documents/GitHub/data/output/repair/task/";
+        String INPUT_DIR_REAL = "../../../../../data";
+        String OUTPUT_DIR_REAL = "/";
 
         File dir = new File(INPUT_DIR_REAL + "real_clean/");
         for (String fileName : Objects.requireNonNull(dir.list())) {
