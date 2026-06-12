@@ -1,13 +1,21 @@
 package Algorithm;
 
-import qs.Problem;
-import qs.QS;
-import qs.QSException;
+import org.apache.commons.math3.optim.MaxIter;
+import org.apache.commons.math3.optim.PointValuePair;
+import org.apache.commons.math3.optim.linear.LinearConstraint;
+import org.apache.commons.math3.optim.linear.LinearConstraintSet;
+import org.apache.commons.math3.optim.linear.LinearObjectiveFunction;
+import org.apache.commons.math3.optim.linear.NoFeasibleSolutionException;
+import org.apache.commons.math3.optim.linear.NonNegativeConstraint;
+import org.apache.commons.math3.optim.linear.Relationship;
+import org.apache.commons.math3.optim.linear.SimplexSolver;
+import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 
 public class Holistic {
@@ -189,15 +197,13 @@ public class Holistic {
     }
 
     /**
-     * using QSopt.jar
+     * Solves the original Holistic linear program.
      *
-     * @param xvals
+     * @param xvals optimized positive and negative adjustments
      */
     private void buildProblem(double[] xvals, int pairnum) {
         int len = td_dirty.length;
         // int varnum = len * varmul; // var num
-        // using Qsopt
-
         pairnum *= 2; // constraint num
         HashSet<Integer> conflictSet = new HashSet<Integer>();
 
@@ -205,34 +211,10 @@ public class Holistic {
         int ncols = len * varmul;
         int nrows = pairnum;
 
-        int[] cmatcnt = new int[ncols]; // count
-        int[] cmatbeg = new int[ncols]; // beg[i]=beg[i-1]+cnt[i-1]
-        // int[] cmatind = new int[nrows * ncols];
-        // double[] cmatval = new double[nrows * ncols];
         double[] obj = new double[ncols];
-        double[] rhs = new double[nrows];
-        char[] sense = new char[nrows];
-        double[] lower = new double[ncols];
-        double[] upper = new double[ncols];
-
-        for (int i = 0; i < ncols; ++i) {
-            lower[i] = 0;
-            upper[i] = QS.MAXDOUBLE;
-        }
-        cmatbeg[0] = 0;
-
-        ArrayList<ArrayList<Integer>> indList = new ArrayList<>();
-        ArrayList<ArrayList<Double>> valList = new ArrayList<>();
-        for (int i = 0; i < ncols; ++i) {
-            ArrayList<Integer> tempIndList = new ArrayList<Integer>();
-            indList.add(tempIndList);
-
-            ArrayList<Double> tempValList = new ArrayList<Double>();
-            valList.add(tempValList);
-        }
+        Collection<LinearConstraint> constraints = new ArrayList<>(nrows);
 
         double vali, valj;
-        int index = 0; // indicates the row index
         double delta1, delta2;
 
         for (int i = 0; i < len; ++i) {
@@ -250,58 +232,26 @@ public class Holistic {
 
                     if (valj - vali > delta1 + EPSILON ||
                             valj - vali < delta2 - EPSILON) {
-                        cmatcnt[i * varmul] += 2;
-                        cmatcnt[i * varmul + 1] += 2;
-                        cmatcnt[j * varmul] += 2;
-                        cmatcnt[j * varmul + 1] += 2;
-
                         conflictSet.add(i);
                         conflictSet.add(j);
 
-                        fillIndList(indList, i, index);
-                        fillIndList(indList, j, index);
-
-                        fillValList(valList, i, -1);
-                        fillValList(valList, j, 1);
-
+                        double[] coefficients = new double[ncols];
+                        coefficients[i * varmul] = -1;
+                        coefficients[i * varmul + 1] = 1;
+                        coefficients[j * varmul] = 1;
+                        coefficients[j * varmul + 1] = -1;
                         // uj-vj-(ui-vi) <= delta1+xi-xj
-                        rhs[index] = delta1 + vali - valj;
-                        sense[index] = 'L';
-                        index++;
-
+                        constraints.add(new LinearConstraint(
+                                coefficients, Relationship.LEQ, delta1 + vali - valj));
                         // uj-vj-(ui-vi) >= delta2+xi-xj
-                        rhs[index] = delta2 + vali - valj;
-                        sense[index] = 'G';
-                        index++;
+                        constraints.add(new LinearConstraint(
+                                coefficients, Relationship.GEQ, delta2 + vali - valj));
                     } // end of ||>delta
                 } else {
                     break;
                 }
             } // end of for j
         } // end of for i
-
-        for (int i = 1; i < ncols; ++i) {
-            cmatbeg[i] = cmatbeg[i - 1] + cmatcnt[i - 1];
-        }
-
-        int size = cmatbeg[ncols - 1] + cmatcnt[ncols - 1];
-        int[] cmatind = new int[size];
-        double[] cmatval = new double[size];
-
-        int tempbegin = 0;
-        for (int i = 0; i < ncols - 1; ++i) {
-            tempbegin = cmatbeg[i];
-            for (int j = tempbegin; j < cmatbeg[i + 1]; ++j) {
-                cmatind[j] = indList.get(i).get(j - tempbegin);
-                cmatval[j] = valList.get(i).get(j - tempbegin);
-            }
-        }
-
-        tempbegin = cmatbeg[ncols - 1];
-        for (int j = tempbegin; j < size; ++j) {
-            cmatind[j] = indList.get(ncols - 1).get(j - tempbegin);
-            cmatval[j] = valList.get(ncols - 1).get(j - tempbegin);
-        }
 
         for (int i = 0; i < len; ++i) {
             if (conflictSet.contains(i)) {
@@ -313,36 +263,21 @@ public class Holistic {
             }
         }
 
-        try {
-            Problem problem = new Problem("global", ncols, nrows, cmatcnt,
-                    cmatbeg, cmatind, cmatval, QS.MIN, obj, rhs, sense, lower,
-                    upper, null, null);
-
-            problem.opt_primal();
-
-            problem.get_x_array(xvals);
-        } catch (QSException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+        if (constraints.isEmpty()) {
+            return;
         }
-    }
 
-    private void fillIndList(ArrayList<ArrayList<Integer>> indList, int i,
-                             int index) {
-        indList.get(i * varmul).add(index);
-        indList.get(i * varmul).add(index + 1);
-
-        indList.get(i * varmul + 1).add(index);
-        indList.get(i * varmul + 1).add(index + 1);
-    }
-
-    private void fillValList(ArrayList<ArrayList<Double>> valList, int i,
-                             int mul) {
-        valList.get(i * varmul).add(1.0 * mul);
-        valList.get(i * varmul).add(1.0 * mul);
-
-        valList.get(i * varmul + 1).add(-1.0 * mul);
-        valList.get(i * varmul + 1).add(-1.0 * mul);
+        try {
+            PointValuePair solution = new SimplexSolver().optimize(
+                    new MaxIter(10000),
+                    new LinearObjectiveFunction(obj, 0),
+                    new LinearConstraintSet(constraints),
+                    GoalType.MINIMIZE,
+                    new NonNegativeConstraint(true));
+            System.arraycopy(solution.getPoint(), 0, xvals, 0, ncols);
+        } catch (NoFeasibleSolutionException e) {
+            throw new IllegalStateException("Holistic linear program is infeasible", e);
+        }
     }
 
     /**

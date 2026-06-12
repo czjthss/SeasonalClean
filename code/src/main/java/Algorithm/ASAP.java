@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.nio.file.Path;
 
 public class ASAP {
     private final long[] td_time;
@@ -11,7 +12,7 @@ public class ASAP {
     private double[] td_repair;
     private final long cost_time;
     private final int windowSize;
-    public final String FILE_DIR = "/Users/chenzijie/Documents/GitHub/repair-seasonal-exp/src/main/java/Algorithm/ASAPPy/";
+    private final Path fileDir = RuntimePaths.algorithmDirectory("ASAPPy");
 
     public ASAP(long[] td_time, double[] td_dirty, int windowSize) throws Exception {
         this.td_time = td_time;
@@ -41,22 +42,27 @@ public class ASAP {
             string.append(value);
             string.append("\n");
         }
-        BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(FILE_DIR + "input.txt", false));
+        BufferedWriter bufferedWriter = new BufferedWriter(
+                new FileWriter(fileDir.resolve("input.txt").toFile(), false));
         bufferedWriter.write(string.toString());
         bufferedWriter.close();
 
         // python shell
-        String[] cmd = {
-                "/Users/chenzijie/anaconda3/envs/holoclean/bin/python",
-                FILE_DIR + "ASAP.py",
-                String.valueOf(windowSize),
-        };
-        Process process = Runtime.getRuntime().exec(cmd);
-        process.waitFor();
+        Process process = new ProcessBuilder(
+                RuntimePaths.pythonExecutable(),
+                fileDir.resolve("ASAP.py").toString(),
+                String.valueOf(windowSize))
+                .inheritIO()
+                .start();
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            throw new IllegalStateException("ASAP Python process exited with code " + exitCode);
+        }
         String line;
 
         // read
-        BufferedReader bufferedReader = new BufferedReader(new FileReader(FILE_DIR + "output.txt"));
+        BufferedReader bufferedReader = new BufferedReader(
+                new FileReader(fileDir.resolve("output.txt").toFile()));
         int i = 0;
         while ((line = bufferedReader.readLine()) != null) {
             td_repair[i++] = Double.parseDouble(line);
@@ -65,15 +71,6 @@ public class ASAP {
     }
 
     public static void main(String[] args) throws Exception {
-        // read
-        String FILE_DIR = "/Users/chenzijie/Documents/GitHub/repair-seasonal-exp/src/main/java/Algorithm/ASAP/";
-        String line;
-        BufferedReader bufferedReader = new BufferedReader(new FileReader(FILE_DIR + "output.txt"));
-        int i = 0;
-        while ((line = bufferedReader.readLine()) != null) {
-            i++;
-        }
-        System.out.println(i);
-        bufferedReader.close();
+        System.out.println(RuntimePaths.algorithmDirectory("ASAPPy").resolve("output.txt"));
     }
 }

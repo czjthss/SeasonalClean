@@ -25,7 +25,7 @@ public class LoadData {
     public void loadTimeSeriesData(String filename) throws FileNotFoundException {
         Scanner sc = new Scanner(new File(filename));
 
-        max_v = Double.MIN_VALUE;
+        max_v = -Double.MAX_VALUE;
         min_v = Double.MAX_VALUE;
 
         sc.nextLine();  // skip table header

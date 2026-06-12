@@ -1,10 +1,10 @@
 package Algorithm;
 
-import javax.swing.*;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.nio.file.Path;
 
 
 public class Holoclean {
@@ -12,7 +12,7 @@ public class Holoclean {
     private final double[] td_dirty;
     private double[] td_repair;
     private final int period;
-    public final String FILE_DIR = "/Users/chenzijie/Documents/GitHub/repair-seasonal-exp/src/main/java/Algorithm/HolocleanPy/";
+    private final Path fileDir = RuntimePaths.algorithmDirectory("HolocleanPy");
 
     private final long cost_time;
 
@@ -44,26 +44,29 @@ public class Holoclean {
             string.append(String.format("%.2f", value));  // reformat for rule mining
             string.append("\n");
         }
-        BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(FILE_DIR + "input.txt", false));
+        BufferedWriter bufferedWriter = new BufferedWriter(
+                new FileWriter(fileDir.resolve("input.txt").toFile(), false));
         bufferedWriter.write(string.toString());
         bufferedWriter.close();
 
         // python shell
-        String[] cmd = {
-                "/Users/chenzijie/anaconda3/envs/holoclean/bin/python",
-                FILE_DIR + "hc.py",
-                String.valueOf(period),
-        };
-        Process process = Runtime.getRuntime().exec(cmd);
+        Process process = new ProcessBuilder(
+                RuntimePaths.pythonExecutable(),
+                fileDir.resolve("hc.py").toString(),
+                String.valueOf(period))
+                .inheritIO()
+                .start();
         process.waitFor();
         String line;
         // read
         BufferedReader bufferedReader;
         if (process.exitValue() == 0)
-            bufferedReader = new BufferedReader(new FileReader(FILE_DIR + "output.txt"));
+            bufferedReader = new BufferedReader(
+                    new FileReader(fileDir.resolve("output.txt").toFile()));
         else {
             System.out.println("Holoclean Runtime Error");
-            bufferedReader = new BufferedReader(new FileReader(FILE_DIR + "input.txt"));
+            bufferedReader = new BufferedReader(
+                    new FileReader(fileDir.resolve("input.txt").toFile()));
         }
         int i = 0;
         while ((line = bufferedReader.readLine()) != null) {

@@ -3,6 +3,7 @@ import numpy as np
 import scipy.stats
 import numpy.fft
 import math
+from pathlib import Path
 
 
 class Metrics(object):
@@ -156,10 +157,10 @@ if __name__ == '__main__':
     if len(sys.argv) >= 2:
         window_size = int(sys.argv[1])  # First argument
 
-    FILE_DIR = "/Users/chenzijie/Documents/GitHub/repair-seasonal-exp/src/main/java/Algorithm/ASAPPy/"
+    file_dir = Path(__file__).resolve().parent
     # input
     y = []
-    f = open(FILE_DIR + "input.txt", "r")
+    f = open(file_dir / "input.txt", "r")
     for line in f.readlines():
         if line.strip() != "":
             y.append(float(line.strip()))
@@ -168,6 +169,6 @@ if __name__ == '__main__':
 
     repair = ASAP(y, window_size)
 
-    f = open(FILE_DIR + "output.txt", "w")
+    f = open(file_dir / "output.txt", "w")
     f.write("\n".join([str(item) for item in repair]))
     f.close()

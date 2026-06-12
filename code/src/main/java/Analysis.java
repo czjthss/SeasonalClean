@@ -2,6 +2,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
 
 public class Analysis {
     private final double[] td_clean;
@@ -36,7 +37,7 @@ public class Analysis {
         }
 
         this.MAE = this.MAE / (dataLen - labelNum);
-        this.MAPE = this.MAE / (dataLen - labelNum);
+        this.MAPE = this.MAPE / (dataLen - labelNum);
         this.RMSE = Math.sqrt(this.RMSE / (dataLen - labelNum));
     }
 
@@ -59,6 +60,10 @@ public class Analysis {
     public void writeRepairResultToFile(String targetFileName) {
         File writeFile = new File(targetFileName);
         try {
+            File parent = writeFile.getParentFile();
+            if (parent != null) {
+                Files.createDirectories(parent.toPath());
+            }
             BufferedWriter writeText = new BufferedWriter(new FileWriter(writeFile));
             writeText.write("timestamp,value");
             for (int j = 0; j < this.td_repair.length; j++) {

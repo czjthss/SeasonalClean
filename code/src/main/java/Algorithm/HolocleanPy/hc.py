@@ -4,8 +4,9 @@ from repair.featurize import *
 import numpy as np
 import pandas as pd
 import sys
+from pathlib import Path
 
-FILE_DIR = "/Users/chenzijie/Documents/GitHub/repair-seasonal-exp/src/main/java/Algorithm/HolocleanPy/"
+FILE_DIR = Path(__file__).resolve().parent
 
 
 def constant_ext(data_ext, interval):
@@ -89,13 +90,13 @@ def reformat_data(file_path, period):
     origin["resid"] = resid
     origin["thr1"] = mean - 3 * std
     origin["thr2"] = mean + 3 * std
-    origin.to_csv(FILE_DIR + "dirty.csv", index=None)
+    origin.to_csv(FILE_DIR / "dirty.csv", index=None)
 
 
 def load_data():
     # input
     y = []
-    f = open(FILE_DIR + "input.txt", "r")
+    f = open(FILE_DIR / "input.txt", "r")
     for line in f.readlines():
         if line.strip() != "":
             y.append(float(line.strip()))
@@ -105,7 +106,7 @@ def load_data():
     save = pd.DataFrame(columns=["timestamp", "value"])
     save["value"] = y
     save["timestamp"] = np.arange(len(y))
-    save.to_csv(FILE_DIR + "dirty.csv", index = None)
+    save.to_csv(FILE_DIR / "dirty.csv", index = None)
 
 
 if __name__ == '__main__':
@@ -114,7 +115,7 @@ if __name__ == '__main__':
 
     load_data()
 
-    reformat_data(FILE_DIR + 'dirty.csv', period)
+    reformat_data(FILE_DIR / 'dirty.csv', period)
 
     session = HoloClean(
         db_name='holo',
@@ -138,8 +139,8 @@ if __name__ == '__main__':
 
 
     # loading data
-    session.load_data('ts', FILE_DIR + 'dirty.csv')
-    session.load_dcs(FILE_DIR + "constraints.txt")
+    session.load_data('ts', str(FILE_DIR / 'dirty.csv'))
+    session.load_dcs(str(FILE_DIR / "constraints.txt"))
     session.ds.set_constraints(session.get_dcs())
 
     # 3. Detect erroneous cells using these two detectors.
@@ -159,9 +160,9 @@ if __name__ == '__main__':
 
     session.repair_errors(featurizers)
 
-    repaired_df = pd.read_csv(FILE_DIR + "repair.csv")
+    repaired_df = pd.read_csv(FILE_DIR / "repair.csv")
     repair = repaired_df["seasonal"] + repaired_df["trend"] + repaired_df["resid"]
 
-    f = open(FILE_DIR + "output.txt", "w")
+    f = open(FILE_DIR / "output.txt", "w")
     f.write("\n".join([str(item) for item in repair]))
     f.close()

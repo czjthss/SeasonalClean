@@ -1,11 +1,11 @@
 package Algorithm.util;
 
-import javafx.util.Pair;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 
 public class ScreenUtil {
+    private record TimeValue(long time, double value) {}
+
     private double smin, smax;
     private double w;
     private int n;
@@ -96,12 +96,12 @@ public class ScreenUtil {
     public void repair() {
         // fixed window
 
-        ArrayList<Pair<Long, Double>> ans = new ArrayList<>();
-        ans.add(new Pair<>(time[0], original[0]));
+        ArrayList<TimeValue> ans = new ArrayList<>();
+        ans.add(new TimeValue(time[0], original[0]));
         int startIndex = 0;
         for (int i = 1; i < n; i++) {
-            ans.add(new Pair<>(time[i], original[i]));
-            while (ans.get(startIndex).getKey() + w < ans.get(i).getKey()) {
+            ans.add(new TimeValue(time[i], original[i]));
+            while (ans.get(startIndex).time() + w < ans.get(i).time()) {
                 // sliding window
                 local(ans, startIndex);
                 startIndex++;
@@ -112,53 +112,53 @@ public class ScreenUtil {
             startIndex++;
         }
         int k = 0;
-        for (Pair<Long, Double> p : ans) {
-            this.repaired[k] = p.getValue();
+        for (TimeValue p : ans) {
+            this.repaired[k] = p.value();
             k++;
         }
     }
 
-    private double getMedian(ArrayList<Pair<Long, Double>> list, int index) {
+    private double getMedian(ArrayList<TimeValue> list, int index) {
         int m = 0;
         while (index + m + 1 < list.size()
-                && list.get(index + m + 1).getKey() <= list.get(index).getKey() + w) {
+                && list.get(index + m + 1).time() <= list.get(index).time() + w) {
             m++;
         }
         double[] x = new double[2 * m + 1];
-        x[0] = list.get(index).getValue();
+        x[0] = list.get(index).value();
         for (int i = 1; i <= m; i++) {
             x[i] =
-                    list.get(index + i).getValue()
-                            + smin * (list.get(index).getKey() - list.get(index + i).getKey());
+                    list.get(index + i).value()
+                            + smin * (list.get(index).time() - list.get(index + i).time());
             x[i + m] =
-                    list.get(index + i).getValue()
-                            + smax * (list.get(index).getKey() - list.get(index + i).getKey());
+                    list.get(index + i).value()
+                            + smax * (list.get(index).time() - list.get(index + i).time());
         }
         Arrays.sort(x);
         return x[m];
     }
 
-    private double getRepairedValue(ArrayList<Pair<Long, Double>> list, int index, double mid) {
+    private double getRepairedValue(ArrayList<TimeValue> list, int index, double mid) {
         double xmin =
-                list.get(index - 1).getValue()
-                        + smin * (list.get(index).getKey() - list.get(index - 1).getKey());
+                list.get(index - 1).value()
+                        + smin * (list.get(index).time() - list.get(index - 1).time());
         double xmax =
-                list.get(index - 1).getValue()
-                        + smax * (list.get(index).getKey() - list.get(index - 1).getKey());
+                list.get(index - 1).value()
+                        + smax * (list.get(index).time() - list.get(index - 1).time());
         double temp = mid;
         temp = Math.min(xmax, temp);
         temp = Math.max(xmin, temp);
         return temp;
     }
 
-    private void local(ArrayList<Pair<Long, Double>> list, int index) {
+    private void local(ArrayList<TimeValue> list, int index) {
         double mid = getMedian(list, index);
         // 计算x_k'
         if (index == 0) {
-            list.set(index, new Pair<>(list.get(index).getKey(), mid));
+            list.set(index, new TimeValue(list.get(index).time(), mid));
         } else {
             double temp = getRepairedValue(list, index, mid);
-            list.set(index, new Pair<>(list.get(index).getKey(), temp));
+            list.set(index, new TimeValue(list.get(index).time(), temp));
         }
     }
 

@@ -3,6 +3,7 @@ import logging
 import os
 import time
 import pandas as pd
+from pathlib import Path
 
 from .dbengine import DBengine
 from .table import Table, Source
@@ -314,8 +315,8 @@ class Dataset:
                 init_records[tid][attr] = repaired_vals[tid][attr]
         repaired_df = pd.DataFrame.from_records(init_records)
 
-        FILE_DIR = "/Users/chenzijie/Documents/GitHub/repair-seasonal-exp/src/main/java/Algorithm/HolocleanPy/"
-        repaired_df.to_csv(FILE_DIR + "repair.csv", index=None)
+        file_dir = Path(__file__).resolve().parents[1]
+        repaired_df.to_csv(file_dir / "repair.csv", index=None)
 
         name = self.raw_data.name + '_repaired'
         self.repaired_data = Table(name, Source.DF, df=repaired_df)

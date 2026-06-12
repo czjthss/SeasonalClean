@@ -4,11 +4,16 @@ import java.io.File;
 import java.util.Arrays;
 import java.io.FileWriter;
 import java.io.BufferedWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Objects;
 
 public class Experiment {
-    private static final String INPUT_DIR = "../../../../../data";
-    private static final String OUTPUT_DIR = "/";
+    private static final Path REPOSITORY_ROOT = findRepositoryRoot();
+    private static final Path SYNTHETIC_DATA_DIR = REPOSITORY_ROOT.resolve("data/synthetic");
+    private static final Path REAL_CLEAN_DIR = REPOSITORY_ROOT.resolve("data/real_clean");
+    private static final Path REAL_DIRTY_DIR = REPOSITORY_ROOT.resolve("data/real_dirty");
+    private static final Path OUTPUT_DIR = REPOSITORY_ROOT.resolve("results");
     // dataset
     private static final String[] datasetFileList = {
             "power_5241600.csv",
@@ -49,6 +54,25 @@ public class Experiment {
     private static int dataLen, period, max_iter, error_length;
     private static double k, error_range, label_rate, error_rate, scale;
     private static int seed = 666;
+
+    private static Path findRepositoryRoot() {
+        Path current = Path.of("").normalize();
+        if (Files.isDirectory(current.resolve("data"))
+                && Files.isDirectory(current.resolve("code"))) {
+            return current;
+        }
+        if (Files.isDirectory(current.resolve("../data"))
+                && Files.isRegularFile(current.resolve("pom.xml"))) {
+            return current.resolve("..").normalize();
+        }
+        throw new IllegalStateException(
+                "Run SeasonalClean from the repository root or the code directory.");
+    }
+
+    private static Path outputFile(String fileName) throws Exception {
+        Files.createDirectories(OUTPUT_DIR);
+        return OUTPUT_DIR.resolve(fileName);
+    }
 
     private static void reset(int datasetIdx, int taskIdx) {
         datasetFile = datasetFileList[datasetIdx];
@@ -152,28 +176,28 @@ public class Experiment {
     }
 
     public static void recordRMSE(String string) throws Exception {
-        FileWriter fileWritter = new FileWriter(OUTPUT_DIR + "expRMSE.txt", true);
+        FileWriter fileWritter = new FileWriter(outputFile("expRMSE.txt").toFile(), true);
         BufferedWriter bw = new BufferedWriter(fileWritter);
         bw.write(string);
         bw.close();
     }
 
     public static void recordTime(String string) throws Exception {
-        FileWriter fileWritter = new FileWriter(OUTPUT_DIR + "expTime.txt", true);
+        FileWriter fileWritter = new FileWriter(outputFile("expTime.txt").toFile(), true);
         BufferedWriter bw = new BufferedWriter(fileWritter);
         bw.write(string);
         bw.close();
     }
 
     public static void recordIterRMSE(String string) throws Exception {
-        FileWriter fileWritter = new FileWriter(OUTPUT_DIR + "iterRMSE.txt", true);
+        FileWriter fileWritter = new FileWriter(outputFile("iterRMSE.txt").toFile(), true);
         BufferedWriter bw = new BufferedWriter(fileWritter);
         bw.write(string);
         bw.close();
     }
 
     public static void recordIterTime(String string) throws Exception {
-        FileWriter fileWritter = new FileWriter(OUTPUT_DIR + "iterTime.txt", true);
+        FileWriter fileWritter = new FileWriter(outputFile("iterTime.txt").toFile(), true);
         BufferedWriter bw = new BufferedWriter(fileWritter);
         bw.write(string);
         bw.close();
@@ -181,7 +205,10 @@ public class Experiment {
 
     public static void write2File(double[] clean, double[] dirty, String fileName) throws Exception {
         int len = clean.length;
-        FileWriter fileWritter = new FileWriter(OUTPUT_DIR + "akaneData/" + fileName + ".data", true);
+        Path akaneDir = OUTPUT_DIR.resolve("akaneData");
+        Files.createDirectories(akaneDir);
+        FileWriter fileWritter = new FileWriter(
+                akaneDir.resolve(fileName + ".data").toFile(), true);
         BufferedWriter bw = new BufferedWriter(fileWritter);
         for (int i = 0; i < len; ++i) {
             bw.write((i + 1) + "," + dirty[i] + "," + clean[i] + "\n");
@@ -208,7 +235,8 @@ public class Experiment {
                     }
 
                     // start
-                    LoadData loadData = new LoadData(INPUT_DIR + datasetFile, dataLen);
+                    LoadData loadData = new LoadData(
+                            SYNTHETIC_DATA_DIR.resolve(datasetFile).toString(), dataLen);
                     long[] td_time = loadData.getTd_time();
                     double[] td_clean = loadData.getTd_clean();
 
@@ -227,7 +255,7 @@ public class Experiment {
                     write2File(td_clean, td_dirty, datasetName + "_" + task + "_" + base);
 
                     Analysis analysis;
-                    for (int j = 1; j < 1; j++) {
+                    for (int j = 1; j <= 5; j++) {
                         switch (j) {
                             case 1 ->
                                     analysis = srdRepair(td_time, td_clean, td_dirty, period, k, max_iter, default_bool);
@@ -260,23 +288,21 @@ public class Experiment {
         // 4imr
         label_rate = 0.5;
 
-        // reset
-        String INPUT_DIR_REAL = "../../../../../data";
-        String OUTPUT_DIR_REAL = "/";
-
-        File dir = new File(INPUT_DIR_REAL + "real_clean/");
+        File dir = REAL_CLEAN_DIR.toFile();
         for (String fileName : Objects.requireNonNull(dir.list())) {
             String methodName = fileName.split("_")[0];
             if (Objects.equals(methodName, "grid")) period = 1440;
             else period = 288;
 
             // td_clean
-            LoadData loadData = new LoadData(INPUT_DIR_REAL + "real_clean/" + fileName, Integer.MAX_VALUE);
+            LoadData loadData = new LoadData(
+                    REAL_CLEAN_DIR.resolve(fileName).toString(), Integer.MAX_VALUE);
             long[] td_time = loadData.getTd_time();
             double[] td_clean = loadData.getTd_clean();
 
             // td_dirty
-            loadData = new LoadData(INPUT_DIR_REAL + "real_dirty/" + fileName, Integer.MAX_VALUE);
+            loadData = new LoadData(
+                    REAL_DIRTY_DIR.resolve(fileName).toString(), Integer.MAX_VALUE);
             double[] td_dirty = loadData.getTd_clean();
 
             // label4imr
@@ -288,7 +314,7 @@ public class Experiment {
             Arrays.fill(default_bool, false);
 
             Analysis analysis;
-            for (int j = 6; j < 11; j++) {
+            for (int j = 1; j <= 5; j++) {
                 switch (j) {
                     case 1 -> analysis = srdRepair(td_time, td_clean, td_dirty, period, k, max_iter, default_bool);
                     case 2 -> analysis = screenRepair(td_time, td_clean, td_dirty, default_bool);
@@ -302,9 +328,12 @@ public class Experiment {
                     default -> analysis = holocleanRepair(td_time, td_clean, td_dirty, default_bool, period);
                 }
                 String[] methodRealList = {"", "srd", "screen", "lsgreedy", "imr", "ewma", "asap", "sequential", "holistic", "garf", "holoclean"};
-                analysis.writeRepairResultToFile(OUTPUT_DIR_REAL + methodRealList[j] + "/" + fileName);
+                analysis.writeRepairResultToFile(
+                        OUTPUT_DIR.resolve("real").resolve(methodRealList[j])
+                                .resolve(fileName).toString());
 
-                FileWriter fileWritter = new FileWriter(OUTPUT_DIR_REAL + "performance.txt", true);
+                FileWriter fileWritter = new FileWriter(
+                        outputFile("performance.txt").toFile(), true);
                 BufferedWriter bw = new BufferedWriter(fileWritter);
                 bw.write(fileName.split("\\.")[0] + "," + j + "," + analysis.getRMSE() + "\n");
                 bw.close();
@@ -344,7 +373,8 @@ public class Experiment {
                 long[] timeList = new long[10];
                 for (max_iter = 1; max_iter <= 10; max_iter++) {
                     // start
-                    LoadData loadData = new LoadData(INPUT_DIR + datasetFile, dataLen);
+                    LoadData loadData = new LoadData(
+                            SYNTHETIC_DATA_DIR.resolve(datasetFile).toString(), dataLen);
                     long[] td_time = loadData.getTd_time();
                     double[] td_clean = loadData.getTd_clean();
 
@@ -370,10 +400,52 @@ public class Experiment {
         }
     }
 
+    public static void main_smoke() throws Exception {
+        int smokeLength = 2000;
+        int smokePeriod = 288;
+        LoadData loadData = new LoadData(
+                REAL_CLEAN_DIR.resolve("bank_1_7983.csv").toString(), smokeLength);
+        long[] tdTime = loadData.getTd_time();
+        double[] tdClean = loadData.getTd_clean();
+
+        AddNoise addNoise = new AddNoise(tdClean, 5.0, 2.0, 25, seed);
+        double[] tdDirty = addNoise.getTd_dirty();
+        LabelData labelData = new LabelData(tdClean, tdDirty, 0.5, seed);
+        double[] tdLabel = labelData.getTd_label();
+        boolean[] tdBool = labelData.getTd_bool();
+        boolean[] noLabels = new boolean[tdClean.length];
+
+        Analysis srd = srdRepair(tdTime, tdClean, tdDirty, smokePeriod, 6.0, 5, noLabels);
+        Analysis screen = screenRepair(tdTime, tdClean, tdDirty, noLabels);
+        Analysis lsgreedy = lsgreedyRepair(tdTime, tdClean, tdDirty, noLabels);
+        Analysis imr = imrRepair(tdTime, tdClean, tdDirty, tdLabel, tdBool);
+        Analysis ewma = ewmaRepair(tdTime, tdClean, tdDirty, noLabels);
+        Path result = OUTPUT_DIR.resolve("smoke/srd_repaired.csv");
+        srd.writeRepairResultToFile(result.toString());
+
+        System.out.println("Smoke test completed.");
+        System.out.println("SRD RMSE: " + srd.getRMSE() + ", " + srd.getCost_time() + " ms");
+        System.out.println(
+                "SCREEN RMSE: " + screen.getRMSE() + ", " + screen.getCost_time() + " ms");
+        System.out.println(
+                "LsGreedy RMSE: " + lsgreedy.getRMSE() + ", "
+                        + lsgreedy.getCost_time() + " ms");
+        System.out.println("IMR RMSE: " + imr.getRMSE() + ", " + imr.getCost_time() + " ms");
+        System.out.println(
+                "EWMA RMSE: " + ewma.getRMSE() + ", " + ewma.getCost_time() + " ms");
+        System.out.println("Output: " + REPOSITORY_ROOT.relativize(result));
+    }
+
     public static void main(String[] args) throws Exception {
-        main_synthetic();
-//        main_real();
-//        main_ablation();
-//        System.out.println("hei");
+        String mode = args.length == 0 ? "smoke" : args[0].toLowerCase();
+        switch (mode) {
+            case "smoke" -> main_smoke();
+            case "synthetic" -> main_synthetic();
+            case "real" -> main_real();
+            case "ablation" -> main_ablation();
+            default -> throw new IllegalArgumentException(
+                    "Unknown mode: " + mode
+                            + ". Expected smoke, synthetic, real, or ablation.");
+        }
     }
 }
